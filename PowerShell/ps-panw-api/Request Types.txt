@@ -1,0 +1,10 @@
+type=keygen
+type=config
+type=commit
+type=op
+type=report
+type=log
+type=import
+type=export
+type=user-id
+type=version
