@@ -1,3 +1,8 @@
+Palo Alto Networks Firewall (Strata) XML API Powershell Tool
+By Josh Levine
+Systems Engineer - Army/USSOCOM
+PowerShell -Core Based
+
 These scripts are two of my first attempts at producing PowerShell alternatives to the popular panxapi.py scripts created by Kevin Steves at Palo Alto Networks.
 My hope is to provide an alternative for environments that aren't permitted to use/install python.
 
