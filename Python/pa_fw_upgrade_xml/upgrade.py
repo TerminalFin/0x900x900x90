@@ -23,6 +23,36 @@ PANOS_UP_URL2   = '</version></install></software></system></request>&key='
 REBOOT_URL      = '/api/?type=op&cmd=<request><restart><system></system></restart></request>&key='
 versions = []
 
+def versionCompare(v1, v2): 
+      
+    # This will split both the versions by '.' 
+    arr1 = v1.split(".")  
+    arr2 = v2.split(".")  
+    n = len(arr1) 
+    m = len(arr2) 
+      
+    # converts to integer from string 
+    arr1 = [int(i) for i in arr1] 
+    arr2 = [int(i) for i in arr2] 
+   
+    # compares which list is bigger and fills  
+    # smaller list with zero (for unequal delimeters) 
+    if n>m: 
+      for i in range(m, n): 
+         arr2.append(0) 
+    elif m>n: 
+      for i in range(n, m): 
+         arr1.append(0) 
+      
+    # returns 1 if version 1 is greater and -1 if 
+    # version 2 is greater and 0 if equal 
+    for i in range(len(arr1)): 
+      if arr1[i]>arr2[i]: 
+         return 1
+      elif arr2[i]>arr1[i]: 
+         return 0
+    return 0
+
 class Unbuffered(object):
     def __init__(self,stream):
         self.stream = stream
@@ -111,9 +141,8 @@ elif not content_dl_success:
 proceed = input('Ready to install latest content update (Y/N)? ')
 
 if proceed.upper() == 'N':
-    a = 0
     print('Script terminating')
-    quit()
+    # quit()
 elif proceed.upper() == 'Y':
     print('Installing latest content update')
     
@@ -148,9 +177,13 @@ while True:
     if up_ver not in versions:
         print('You made an invalid selection.')
         print('Please make another selection or CTRL-C to quit.')
-    elif up_ver <= pan_ver:
+    elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == -1:
+        print(up_ver.split("-",1)[0])
+        print(pan_ver.split("-",1)[0])
         print('You selected a version less than or equal to the current PAN-OS running on the firewall')
         print('Please make another selection or CTRL-C to quit.')
+    elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == 0:
+        print('You selected the same PAN-OS version the firewall is currently running')
     else:
         break
 
