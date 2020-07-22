@@ -1,3 +1,4 @@
+from packaging import version
 import urllib3
 import xml.etree.ElementTree as ET
 import getpass
@@ -23,38 +24,6 @@ PANOS_UP_URL2   = '</version></install></software></system></request>&key='
 REBOOT_URL      = '/api/?type=op&cmd=<request><restart><system></system></restart></request>&key='
 versions = []
 
-def versionCompare(v1, v2): 
-      
-    # This will split both the versions by '.' 
-    arr1 = v1.split(".")  
-    arr2 = v2.split(".")  
-    n = len(arr1) 
-    m = len(arr2) 
-      
-    # converts to integer from string 
-    arr1 = [int(i) for i in arr1] 
-    arr2 = [int(i) for i in arr2] 
-   
-    # compares which list is bigger and fills  
-    # smaller list with zero (for unequal delimeters) 
-    if n>m: 
-      for i in range(m, n): 
-         arr2.append(0) 
-    elif m>n: 
-      for i in range(n, m): 
-         arr1.append(0) 
-      
-    # returns 1 if version 1 is greater and -1 if 
-    # version 2 is greater and 0 if equal 
-    for i in range(len(arr1)): 
-      if arr1[i]>arr2[i]: 
-         return 1
-      elif arr1[i] == arr2[i]:
-          return 0
-      elif arr2[i]>arr1[i]: 
-         return -1
-    return 0
-
 class Unbuffered(object):
     def __init__(self,stream):
         self.stream = stream
@@ -68,7 +37,7 @@ class Unbuffered(object):
 sys.stdout = Unbuffered(sys.stdout)
 
 def pause():
-    raw_input("Press any key to continue...")
+    input("Press any key to continue...")
 
 def check_job(job_id):
     done = False
@@ -95,8 +64,9 @@ def check_job(job_id):
         time.sleep(5)
 
 print('Welcome to the Automated Palo Alto Firewall Upgrade Tool')
-print('Minimum PAN-OS version required: v7.1')
+print('Minimum PAN-OS version required: v7.1\n')
 print('NOTE: superuser account required to download/install PAN-OS image')
+print('NOTE: This script depends on the packaging module (pip install packaging)')
 
 FIREWALL_IP = input('Please enter the IP address of the firewall to be upgraded: ')
 
@@ -196,11 +166,12 @@ while True:
         print('You made an invalid selection.')
         print('Please make another selection or CTRL-C to quit.')
         pause()
-    elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == -1:
+    elif version.parse(up_ver) < version.parse(pan_ver):
         print('You selected a version older than the current PAN-OS running on the firewall')
+        print('Downgrading is currently not supported by this script')
         print('Please make another selection or CTRL-C to quit.')
         pause()
-    elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == 0:
+    elif version.parse(up_ver) == version.parse(pan_ver):
         print('You selected the same PAN-OS version the firewall is currently running')
         pause()
     else:
