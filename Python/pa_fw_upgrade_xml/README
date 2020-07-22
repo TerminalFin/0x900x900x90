@@ -14,4 +14,3 @@ TODO
 
 1. Check for PAN-OS prerequisities (i.e., upgrade to 9.0 before going to 9.0.7, etc.)
 2. Error handling
-3. Transition from the requests module to urllib
