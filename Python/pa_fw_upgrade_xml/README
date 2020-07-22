@@ -1,9 +1,9 @@
 Palo Alto Networks Firewall (Strata) Firewall Upgrade Tool
-- Not dependent upon the requests or BeautifulSoup4 python modules
 By Josh Levine
 Systems Engineer - Army/USSOCOM
 
---- Same script as the original, but built to not rely upon the requests or beautifulsoup4 modules ---
+--- Same script as the original but intended to minimize module dependencies ---
+--- This script is dependent upon the packaging module for version checking ---
 
 This script automates the process of upgrading a Palo Alto Networks (Strata) firewall. The script prompts for two sets of credentials:
 
