@@ -1,4 +1,4 @@
-import requests
+import urllib3
 import xml.etree.ElementTree as ET
 import getpass
 import time
@@ -56,10 +56,7 @@ def versionCompare(v1, v2):
 class Unbuffered(object):
     def __init__(self,stream):
         self.stream = stream
-    def write(self,data):
-        self.stream.write(data)
-        self.stream.flush()
-    def write(self, datas):
+    def write(self,datas):
         self.stream.writelines(datas)
         self.stream.flush()
     def __getattr__(self, attr):
@@ -72,11 +69,14 @@ def check_job(job_id):
     done = False
     latest_progress = 0
     while not done:
-        check_job = ET.fromstring(requests.get('https://' + FIREWALL_IP + JOB_CHECK_URL + job_id + JOB_CHECK_URL2 + api_key, verify=False).content)
-        for item in check_job.findall('result/job/result'):
-            status = item.text
-        for item in check_job.findall('result/job/progress'):
-            progress = item.text
+        # Get current firewall PAN-OS version
+        response = request.request('GET', JOB_CHECK_URL + job_id + JOB_CHECK_URL2 + api_key)
+
+        # Parse XML response and extract job status
+        output = ET.fromstring(response.data)
+        status = output.find('result/job/result').text
+        progress = output.find('result/job/progress').text
+
         if status == 'PEND':
             if progress != latest_progress:
                 latest_progress = progress
@@ -92,29 +92,40 @@ def check_job(job_id):
 print('Welcome to the Automated Palo Alto Firewall Upgrade Tool')
 print('Minimum PAN-OS version required: v7.1')
 print('NOTE: superuser account required to download/install PAN-OS image')
-print('NOTE: This script depends on the requests python module.\n')
 
 FIREWALL_IP = input('Please enter the IP address of the firewall to be upgraded: ')
+
+# Define the request variable to be used for REST API calls
+# cert_reqs='CERT_NONE' and assert_hostname=False ignores errors caused by self-signed certificates
+request = urllib3.HTTPSConnectionPool(FIREWALL_IP, cert_reqs='CERT_NONE',assert_hostname=False)
 
 admin = input('Please enter admin username with API permissions: ')
 password = getpass.getpass('Please enter API administrator password: ')
 
 # Request API key from firewall
 print('Retrieving API key')
-req_key = ET.fromstring(requests.get('https://' + FIREWALL_IP + KEYGEN_URL + admin + '&password=' + password, verify=False).content)
-for item in req_key.findall('result/key'):
-     api_key = item.text
+response = request.request('GET', KEYGEN_URL + admin + '&password=' + password)
+
+# Parse XML response and extract API key
+output = ET.fromstring(response.data)
+api_key = output.find('result/key').text
 
 # Get current firewall PAN-OS version
-ver = ET.fromstring(requests.get('https://' + FIREWALL_IP + OS_VER_URL + api_key, verify=False).content)
-for item in ver.findall('result/system/sw-version'):
-     pan_ver = item.text
+response = request.request('GET', OS_VER_URL + api_key)
+
+# Parse XML response and extract current PAN-OS version
+output = ET.fromstring(response.data)
+pan_ver = output.find('result/system/sw-version').text
 
 print('Downloading list of available PAN-OS software versions. Please wait')
 # Check for available software versions through PANW updates portal
 
-r = ET.fromstring(requests.get('https://' + FIREWALL_IP + CHECK_SW_URL + api_key, verify=False).content)
-for item in r.findall('result/sw-updates/versions/entry/version'):
+response = request.request('GET', CHECK_SW_URL + api_key)
+
+# Parse XML response and extract available software versions
+output = ET.fromstring(response.data)
+
+for item in output.findall('result/sw-updates/versions/entry/version'):
      versions.append(item.text)
 
 # Sort version responses in descending order
@@ -124,11 +135,12 @@ versions.sort(reverse=True)
 print('\nLatest content update is required prior to upgrade.')
 print('Downloading latest content update. Please wait')
 
-content_dl = requests.get('https://' + FIREWALL_IP + CONTENT_URL + api_key, verify=False)
-content_dl_et = ET.fromstring(content_dl.content)
+# Get current firewall PAN-OS version
+response = request.request('GET', CONTENT_URL + api_key)
 
-for item in content_dl_et.findall('result/job'):
-     content_job_id = item.text
+# Parse XML response and extract content download job ID
+output = ET.fromstring(response.data)
+content_job_id = output.find('result/job').text
 
 content_dl_success = check_job(content_job_id)
 if content_dl_success:
@@ -142,14 +154,15 @@ proceed = input('Ready to install latest content update (Y/N)? ')
 
 if proceed.upper() == 'N':
     print('Script terminating')
-    # quit()
+    quit()
 elif proceed.upper() == 'Y':
     print('Installing latest content update')
-    
-cu_install = ET.fromstring(requests.get('https://' + FIREWALL_IP + CU_INSTALL_URL + api_key, verify=False).content)
+    # Get current firewall PAN-OS version
+    response = request.request('GET', CU_INSTALL_URL + api_key)
 
-for item in cu_install.findall('result/job'):
-    cu_install_job_id = item.text
+    # Parse XML response and extract content installation job ID
+    output = ET.fromstring(response.data)
+    cu_install_job_id = output.find('result/job').text
 
 cu_install_success = check_job(cu_install_job_id)
 if cu_install_success:
@@ -166,10 +179,10 @@ while True:
     print('\nCurrent PAN-OS Version: ' + pan_ver)
     print('\nList of available PAN-OS software\n',end='')
     for x in range(0,len(versions)):
-        if x % 6 == 0 and x != 0:
-            print('%10s' % versions[x] + '\n',end='')
+        if x % 5 == 0 and x != 0:
+            print('\n%14s' % versions[x],end='')
         else:
-            print('%10s' % versions[x],end='')
+            print('%14s' % versions[x],end='')
 
     up_ver = input('\n\nPlease type the PAN-OS version to download (type exactly as shown above): ')
 
@@ -194,15 +207,22 @@ admin_user = input('Please enter the superuser username: ')
 admin_pass = getpass.getpass('Please enter the superuser password: ')
 
 print('Retrieving superuser API key')
-req_key = ET.fromstring(requests.get('https://' + FIREWALL_IP + KEYGEN_URL + admin_user + '&password=' + admin_pass, verify=False).content)
-for item in req_key.findall('result/key'):
-     admin_api_key = item.text
+
+# Get superuser API key
+response = request.request('GET', KEYGEN_URL + admin_user + '&password=' + admin_pass)
+
+# Parse XML response and extract superuser API key
+output = ET.fromstring(response.data)
+admin_api_key = output.find('result/key').text
 
 print('\nDownloading PAN-OS image version ' + up_ver + '. Please wait')
 
-panos_dl = ET.fromstring(requests.get('https://' + FIREWALL_IP + PANOS_REQ_URL1 + up_ver + PANOS_REQ_URL2 + admin_api_key, verify=False).content)
-for item in panos_dl.findall('result/job'):
-    panos_dl_job_id = item.text
+# Get current PAN-OS download Job ID
+response = request.request('GET', PANOS_REQ_URL1 + up_ver + PANOS_REQ_URL2 + admin_api_key)
+
+# Parse XML response and extract API key
+output = ET.fromstring(response.data)
+panos_dl_job_id = output.find('result/job').text
 
 panos_dl_success = check_job(panos_dl_job_id)
 
@@ -223,9 +243,13 @@ elif up_proceed.upper() != 'Y':
     quit()
 elif up_proceed.upper() == 'Y':
     print('Installing PAN-OS version: ' + up_ver + '. Please wait')
-    panos_up_install = ET.fromstring(requests.get('https://' + FIREWALL_IP + PANOS_UP_URL1 + up_ver + PANOS_UP_URL2 + admin_api_key, verify=False).content)
-    for item in panos_up_install.findall('result/job'):
-        panos_upg_job_id = item.text
+    
+    # Install the selected PAN-OS version
+    response = request.request('GET', PANOS_UP_URL1 + up_ver + PANOS_UP_URL2 + admin_api_key)
+
+    # Parse XML response and extract installation job ID
+    output = ET.fromstring(response.data)
+    panos_upg_job_id = output.find('result/job').text
 
     panos_up_success = check_job(panos_upg_job_id)
 
@@ -238,7 +262,7 @@ elif up_proceed.upper() == 'Y':
     reboot = input('Reboot firewall now (Recommended) (Y/N)? ')
     if reboot.upper() == 'Y':
         print('Executing reboot. Please try accessing the WEB UI in approximately 10-15 minutes')
-        reboot = requests.get('https://' + FIREWALL_IP + REBOOT_URL + admin_api_key,verify=False)
+        reboot = request.request('GET', REBOOT_URL + admin_api_key)
         print('\nReboot has been initiated')
         quit(0)
     else:
