@@ -49,8 +49,10 @@ def versionCompare(v1, v2):
     for i in range(len(arr1)): 
       if arr1[i]>arr2[i]: 
          return 1
+      elif arr1[i] == arr2[i]:
+          return 0
       elif arr2[i]>arr1[i]: 
-         return 0
+         return -1
     return 0
 
 class Unbuffered(object):
@@ -191,8 +193,6 @@ while True:
         print('You made an invalid selection.')
         print('Please make another selection or CTRL-C to quit.')
     elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == -1:
-        print(up_ver.split("-",1)[0])
-        print(pan_ver.split("-",1)[0])
         print('You selected a version less than or equal to the current PAN-OS running on the firewall')
         print('Please make another selection or CTRL-C to quit.')
     elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == 0:
