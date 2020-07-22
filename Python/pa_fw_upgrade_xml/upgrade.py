@@ -67,7 +67,7 @@ class Unbuffered(object):
 # Make sure python doesn't try to buffer output and pushes it to STDOUT immediately
 sys.stdout = Unbuffered(sys.stdout)
 
-def pause:
+def pause():
     raw_input("Press any key to continue...")
 
 def check_job(job_id):
