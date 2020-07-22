@@ -67,6 +67,9 @@ class Unbuffered(object):
 # Make sure python doesn't try to buffer output and pushes it to STDOUT immediately
 sys.stdout = Unbuffered(sys.stdout)
 
+def pause:
+    raw_input("Press any key to continue...")
+
 def check_job(job_id):
     done = False
     latest_progress = 0
@@ -192,11 +195,14 @@ while True:
     if up_ver not in versions:
         print('You made an invalid selection.')
         print('Please make another selection or CTRL-C to quit.')
+        pause()
     elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == -1:
-        print('You selected a version less than or equal to the current PAN-OS running on the firewall')
+        print('You selected a version older than the current PAN-OS running on the firewall')
         print('Please make another selection or CTRL-C to quit.')
+        pause()
     elif versionCompare(up_ver, pan_ver.split("-",1)[0]) == 0:
         print('You selected the same PAN-OS version the firewall is currently running')
+        pause()
     else:
         break
 
