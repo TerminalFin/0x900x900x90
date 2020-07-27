@@ -9,10 +9,82 @@ function Invoke-Pause() {
     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 }
 
+function Invoke-CLICommand() {
+    $command = Read-Host "Enter CLI command to execute: "
+    $fw_url = "https://$hostname/api/?type=op&cmd="
+    
+    # Split the command string into individual tags
+    foreach($item in $command.Split(" ")) {
+        $fw_url += "<" + $item + ">"
+    }
+    
+    # Reverse the order of the command string to terminate the individual command tags
+    $reverse_command = @($command.split(" "))
+    [array]::reverse($reverse_command)
+    foreach($item in $reverse_command) {
+        $fw_url += "</" + $item + ">"
+    }
+    
+    # Finish terminating the URL with the API Key
+    $fw_url += "&key=$api_key"
+    $XML_Response = Invoke-WebRequest -SkipCertificateCheck -Uri $fw_url
+    
+    # Invalid command
+    if ($XML_Response -like "*error*") {
+        write-host "Invalid command entered"
+    }
+    
+    # Raw content response
+    elseif ($XML_Response -like "*CDATA*") {
+        write-host $XML_Response.Content
+        Invoke-Pause
+    }
+    
+    # Standard XML response
+    else {
+        # Convert raw Invoke-WebRequest response to XML for parsing by Get-XMLTree
+        $XML_Response = [XML]$XML_Response
+        Get-XMLTree($XML_Response)    
+        Invoke-Pause
+    }
+}
+
+function Get-XMLTree($xml) {
+    $nodesWithText = $xml.SelectNodes("//*[text()]")
+    $count = 0
+    $response = "P"
+    foreach($node in $nodesWithText) {
+        #Start with end of path (element-name of the node with text-value)
+        $path = $node.LocalName
+        
+        #Get parentnode
+        $parentnode = $node.ParentNode
+
+        #Loop until document-node (parent of root-node)
+        while($parentnode.LocalName -ne '#document') {
+
+            #Add LocalName (element-name) for parent to path
+            $path = "$($parentnode.LocalName)\$path"
+
+            #Go to next parent node
+            $parentnode = $parentnode.ParentNode
+        }
+
+        #Output "path = text-value"
+        $count += 1
+        "$path = $(($node.'#text').Trim())"
+        if ($count % 10 -eq 0 -and $response -ne "A") {
+            $response = read-host "Pausing...Press (a) to display remaining output or any other key for next page"
+            $response = $response.ToUpper()
+        }
+    }
+}
+
 # Function to generate and return API key
-function Get-APIKey($credObject) {
-    $User = $credObject.GetNetworkCredential().UserName
-    $Pass = $credObject.GetNetworkCredential().Password
+function Get-APIKey($cred) {
+    write-host "Retrieving API key..."
+    $User = $cred.GetNetworkCredential().UserName
+    $Pass = $cred.GetNetworkCredential().Password
     $URL = "https://$Hostname/api/?type=keygen&user=$User&password=$Pass"
     $User = ""
     $Pass = ""
@@ -34,15 +106,17 @@ function Get-MenuChoice() {
         write-host "5. Logging Commands"
         write-host "6. Import/Export Commands"
         write-host "7. Generate Tech-Support File (TSF)"
-        write-host "8. COMMIT Configuration"
-        write-host "9. Version Information`n`n"
+        write-host "8. Perform Firewall Commit"
+        write-host "9. Version Information"
+        write-host "10. Execute Manual Command`n"
         write-host "0. Exit Script"
         $selection = Read-Host "Enter your selection: "
     
         switch($selection) {
             "1" {
                 write-host "Generating API Key"
-                $key = Get-APIKey($Credential)
+                $user_credential = Get-Credential -Message "Enter username and password to get API credential for"
+                $key = Get-APIKey($user_credential)
                 write-host $key
                 Invoke-Pause
             }
@@ -89,10 +163,18 @@ function Get-MenuChoice() {
                 write-host "`nImplementation Pending"
                 Invoke-Pause
             }
+            "10" {
+                Invoke-CLICommand
+            }
         }
     } While ($selection -ne 0)
 }
 
 # Read XML API Administrator account info
-$Credential = Get-Credential -Message "Enter username and password for administrator with XML API permissions: "
+$XML_Credential = Get-Credential -Message "Enter username and password for administrator with XML API permissions: "
+try {$api_key = Get-APIKey($XML_Credential)}
+catch { 
+    "Invalid credential entered..."
+    break
+}
 Get-MenuChoice
