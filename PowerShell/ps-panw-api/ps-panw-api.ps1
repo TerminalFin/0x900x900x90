@@ -50,18 +50,36 @@ function Invoke-CLICommand() {
 }
 
 function Get-XMLTree($xml) {
+    do {
+        $display_all = Read-Host "Display all output at once (A) or paginate by 10 rows (P): "
+        if ($display_all.ToUpper() -ne "P" -and $display_all.ToUpper() -ne "A") {
+            write-host "Invalid selection. Please try again"
+        }
+    } until ($display_all.ToUpper() -eq "P" -or $display_all.ToUpper() -eq "A")
+    
+    
     $nodesWithText = $xml.SelectNodes("//*[text()]")
     $count = 0
-    $response = "P"
-    foreach($node in $nodesWithText) {
+    foreach($node in $nodesWithText)
+    {    
         #Start with end of path (element-name of the node with text-value)
         $path = $node.LocalName
-        
+
         #Get parentnode
         $parentnode = $node.ParentNode
 
         #Loop until document-node (parent of root-node)
-        while($parentnode.LocalName -ne '#document') {
+        while($parentnode.LocalName -ne '#document')
+        {
+            #If sibling with same LocalName (element-name) exists
+            if(@($parentnode.ParentNode.ChildNodes | Where-Object { $_.LocalName -eq $parentnode.LocalName }).Count -gt 1)
+            {
+                #Add text-value to path
+                if($parentnode.'#text')
+                {
+                    $path = "{0}\$path" -f ($parentnode.'#text').Trim()
+                }
+            }
 
             #Add LocalName (element-name) for parent to path
             $path = "$($parentnode.LocalName)\$path"
@@ -70,12 +88,13 @@ function Get-XMLTree($xml) {
             $parentnode = $parentnode.ParentNode
         }
 
-        #Output "path = text-value"
         $count += 1
+        
+        #Output "path = text-value"
         "$path = $(($node.'#text').Trim())"
-        if ($count % 10 -eq 0 -and $response -ne "A") {
-            $response = read-host "Pausing...Press (a) to display remaining output or any other key for next page"
-            $response = $response.ToUpper()
+        if ($count % 10 -eq 0 -and $display_all.ToUpper() -ne "A") {
+            $response = read-host "Pausing...Press enter to continue"
+            $count = 0
         }
     }
 }
