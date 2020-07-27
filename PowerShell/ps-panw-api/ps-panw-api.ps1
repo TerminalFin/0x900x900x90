@@ -34,7 +34,7 @@ function Invoke-CLICommand() {
         write-host "Invalid command entered"
     }
     
-    # Raw content response
+    # Character Data XML response (Shell output)
     elseif ($XML_Response -like "*CDATA*") {
         write-host $XML_Response.Content
         Invoke-Pause
