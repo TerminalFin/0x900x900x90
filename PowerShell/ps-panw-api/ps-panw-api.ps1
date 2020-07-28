@@ -49,6 +49,8 @@ function Invoke-CLICommand() {
     }
 }
 
+# Thanks to "Frodo P" for the post that led me to the final function below
+# Source URL: https://stackoverflow.com/questions/37197197/iterate-through-xml-tree-with-unknown-structure-and-size-for-xml-to-registry
 function Get-XMLTree($xml) {
     do {
         $display_all = Read-Host "Display all output at once (A) or paginate by 10 rows (P): "
