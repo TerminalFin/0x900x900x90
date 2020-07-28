@@ -1,6 +1,7 @@
 param (
-    [Parameter(Mandatory=$True)]
-    [String] $Hostname
+    [String] $Hostname,
+    [String] $Command="",
+    [String] $Batch=""
 )
 
 # Pause function
@@ -9,10 +10,18 @@ function Invoke-Pause() {
     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 }
 
-function Invoke-CLICommand() {
-    $command = Read-Host "Enter CLI command to execute: "
-    $fw_url = "https://$hostname/api/?type=op&cmd="
+function Invoke-CLICommand($command="") {
+    if ($command -eq "") {
+        $command = Read-Host "Enter CLI command to execute: "
+    }
+    if ("log" -in $command) {
+        $fw_url = "https://$hostname/api/?type=log&cmd="    
+    }
+    else {
+        $fw_url = "https://$hostname/api/?type=op&cmd="
+    }
     
+
     # Split the command string into individual tags
     foreach($item in $command.Split(" ")) {
         $fw_url += "<" + $item + ">"
@@ -119,12 +128,12 @@ function Get-MenuChoice() {
         write-host "PANW Powershell Firewall Manager"
         write-host "Written by Josh Levine (SE-DOD1 - Army/USSOCOM/SOF)"
         write-host "---------------------------------------------------"
-        write-host "Main Menu (Please select category)`n`n"
+        write-host "Main Menu (Please select category)`n"
         write-host "1. Generate API Key"
         write-host "2. Operational Commands"
         write-host "3. Configuration Commands"
         write-host "4. Reporting Commands"
-        write-host "5. Logging Commands"
+        write-host "5. 'Show Log' Commands"
         write-host "6. Import/Export Commands"
         write-host "7. Generate Tech-Support File (TSF)"
         write-host "8. Perform Firewall Commit"
@@ -191,6 +200,10 @@ function Get-MenuChoice() {
     } While ($selection -ne 0)
 }
 
+if ($Hostname -eq ""){
+    $Hostname = Read-host "Enter firewall IP address or FQDN: "
+}
+
 # Read XML API Administrator account info
 $XML_Credential = Get-Credential -Message "Enter username and password for administrator with XML API permissions: "
 try {$api_key = Get-APIKey($XML_Credential)}
@@ -198,4 +211,26 @@ catch {
     "Invalid credential entered..."
     break
 }
+
+#### INCOMPLETE ####
+# Parse script arguments
+if ($Batch -ne "") {
+    if (-not (Test-Path $Batch)) {
+        Write-Host "Batch file not found"
+        break
+    }
+    if ($Command -eq "") {
+        Write-Host "Batch mode indicated but command was not specified"
+        $Command = "Enter batch command to execute: "
+        $Command = $Command.ToLower()
+        
+    }
+}
+elseif ($Command -ne "") {
+    $Command = $Command.ToLower()
+    Write-Host "Executing command '$Command'"
+    Invoke-CLICommand($Command)
+    break
+}
+
 Get-MenuChoice
