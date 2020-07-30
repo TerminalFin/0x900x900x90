@@ -2,8 +2,8 @@ param (
     [String] $Hostname,
     [String] $Command,
     [String] $Batch,
-    $DisplayAll,
-    $PauseBetweenFW
+    [Boolean] $DisplayAll,
+    [Boolean] $PauseBetweenFW
 )
 
 # Ask whether or not to pause between outputs in batch mode
@@ -82,8 +82,8 @@ function Show-XMLResponse($response) {
     }
 }
 
-function Invoke-CLICommand($command="", $isBatch="false", $fw_list="") {
-    
+function Invoke-CLICommand($command, $fw_list) {
+
     # Command to execute not passed via CLI
     if ($command -eq "") {
         $command = Read-Host "Enter CLI command to execute: "
@@ -95,7 +95,7 @@ function Invoke-CLICommand($command="", $isBatch="false", $fw_list="") {
         $action = "op"
     }
     
-    if ($isBatch){
+    if ($Batch -ne ""){
         foreach ($item in $fw_list) {
 
             # Get FW specific API key
@@ -109,15 +109,15 @@ function Invoke-CLICommand($command="", $isBatch="false", $fw_list="") {
             Show-XMLResponse $XML_Response
         }
     }
-    elseif (-not($isBatch)) {
-        Set-DisplayAll
-        
+    elseif ($Batch -eq "") {
+
         # Generate $fw_url
         $fw_url = "https://$hostname/api/?type=$action&cmd=$(Get-SplitCommand($command))&key=$api_key"
 
         $XML_Response = Invoke-WebRequest -SkipCertificateCheck -Uri $fw_url
     
         Show-XMLResponse $XML_Response
+        Invoke-Pause
     }
 }
 
@@ -179,12 +179,15 @@ function Get-APIKey($cred, $hostn) {
 }
 
 ### MAIN ROUTINE ###
+
 <# --- DEBUG CODE TO VERIFY CLI ARGUMENTS
 write-host "DisplayAll = $DisplayAll"
 write-host "PauseBetweenFW = $PauseBetweenFW"
 write-host "Command = $Command"
 write-host "Batch = $Batch"
 #>
+
+Set-Variable -name "Hostname" -Scope global
 
 if ($Hostname -eq "" -and $Batch -eq ""){
     $Hostname = Read-host "Enter firewall IP address or FQDN: "
@@ -235,14 +238,14 @@ if ($Command -ne "" -and $Batch -eq ""){
 # Batch mode with no command argument specified
 elseif ($Command -eq "" -and $Batch -ne "") {
     $fw_list = Get-Content -Path $Batch
-    Invoke-CLICommand "" $true $fw_list
+    Invoke-CLICommand "" $fw_list
     break
 }
 
 # Batch mode with command argument specified
 elseif ($Command -ne "" -and $Batch -ne "") {
     $fw_list = Get-Content -Path $Batch
-    Invoke-CLICommand $Command $true $fw_list
+    Invoke-CLICommand $Command $fw_list
     break
 }
 
@@ -317,6 +320,7 @@ do {
             Invoke-Pause
         }
         "10" {
+            Set-DisplayAll
             Invoke-CLICommand "" "" $hostname
         }
     }
